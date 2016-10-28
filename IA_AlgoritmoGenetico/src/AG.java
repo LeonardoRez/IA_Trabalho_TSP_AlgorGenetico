@@ -9,14 +9,19 @@ public class AG {
 
     private String[] nomes;
     private int dist[][];
-    private ArrayList<Gene> genes;
+    private ArrayList<Gene> genes, elite;
+    private int quantElite;
+    private int quantCidades, quantGenes;
 
-    public AG(int quantCidades, int quantGenes) {
+    public AG(int quantCidades, int quantGenes, int quantElite) {
+        this.quantElite = quantElite;
+        this.quantCidades = quantCidades;
+        this.quantGenes = quantGenes;
         dist = new int[quantCidades][quantCidades];
         nomes = new String[quantCidades];
         genes = new ArrayList<>();
         for (int i = 0; i < quantGenes; i++) {
-            genes.add(new Gene(quantCidades));
+            genes.add(new Gene(quantCidades, dist));
         }
     }
 
@@ -36,39 +41,75 @@ public class AG {
         }
     }
 
-    private int calcFitness(Gene g) {
-        int f = 0;
-        for (int i = 0; i < g.cidades.length - 1; i++) {
-            f += dist[g.cidades[i]][g.cidades[i + 1]];
-        }
-        return f;
-    }
-
     public void printGenes() {
         for (Gene g : genes) {
-            System.out.println(g.toString(nomes));
+            System.out.println(g.toString(nomes) + "\tfitness:" + g.calcFitness());
         }
+        System.out.println("FIM DO PRINT");
+    }
+
+    public void mutaGenes() {
+        for (Gene g : genes) {
+            g.mutacao();
+        }
+    }
+
+    public void cruzaGenes() {
+        //pegando os elitistas
+        Collections.sort(genes);
+        elite = new ArrayList<>();
+        for (int i = 0; i < quantElite; i++) {
+            elite.add(genes.get(i));
+        }
+        Random rnd = ThreadLocalRandom.current();
+        for (int i = 0; i < quantGenes / 2; i++) {
+            Gene pai = genes.get(rnd.nextInt(quantGenes));
+            Gene mae = genes.get(rnd.nextInt(quantGenes));
+            int pontoCorte = rnd.nextInt(quantCidades - 3) + 2;
+            int cidadesFilho1[] = new int[quantCidades];
+            int cidadesFilho2[] = new int[quantCidades];
+            for (int j = 0; j < pontoCorte; j++) {
+                cidadesFilho1[j] = pai.cidades[j];
+                cidadesFilho2[j] = mae.cidades[j];
+            }
+            for (int j = pontoCorte; j < quantCidades; j++) {
+                cidadesFilho1[j] = mae.cidades[j];
+                cidadesFilho2[j] = pai.cidades[j];
+            }
+            Gene filho1 = new Gene(cidadesFilho1, dist);
+            Gene filho2 = new Gene(cidadesFilho2, dist);
+            elite.add(filho1);
+            elite.add(filho2);
+        }
+        for (int i = 0; i < quantElite; i++) {
+            elite.remove(i + quantElite);
+        }
+        genes = elite;
     }
 
 }
 
-class Gene {
+class Gene implements Comparable {
 
     public int cidades[];
+    public int[][] refDist;
 
-    public Gene(int v[]) {
+    public Gene(int v[], int tabela[][]) {
+        refDist = tabela;
         cidades = v;
     }
 
-    public Gene(int tam) {
+    public Gene(int tam, int tabela[][]) {
+        refDist = tabela;
+        Random rnd = ThreadLocalRandom.current();
         cidades = new int[tam];
         for (int i = 0; i < tam; i++) {
-            cidades[i] = i;
+            cidades[i] = rnd.nextInt(tam);
         }
-        shuffleArray(cidades);
+//         shuffleArray(cidades); //usado quando cidades não se repetiam na criação
     }
 
-    static void shuffleArray(int[] ar) {
+    static void shuffleArray(int[] ar) {  //usado quando cidades não se repetiam na criação
         // If running on Java 6 or older, use `new Random()` on RHS here
         Random rnd = ThreadLocalRandom.current();
         for (int i = ar.length - 1; i > 0; i--) {
@@ -85,11 +126,26 @@ class Gene {
         int quant = rnd.nextInt(cidades.length / 2);
         for (int i = 0; i < quant; i++) {
             int pos1 = rnd.nextInt(cidades.length);
-            int pos2 = rnd.nextInt(cidades.length);
-            int temp = cidades[pos1];
-            cidades[pos1] = cidades[pos2];
-            cidades[pos2] = temp;
+            cidades[pos1] = rnd.nextInt(cidades.length);
         }
+    }
+
+    public int calcFitness() {
+        int f = 0;
+        int repetidos[] = new int[this.cidades.length];
+        for (int i = 0; i < this.cidades.length; i++) {
+            repetidos[i] = -1;
+        }
+        for (int i = 0; i < this.cidades.length - 1; i++) {
+            f += refDist[this.cidades[i]][this.cidades[i + 1]];
+            repetidos[this.cidades[i]]++;
+            f += repetidos[this.cidades[i]] * 100; //pensalização para cada repetição de cidades
+
+        }
+        f += refDist[this.cidades[0]][this.cidades[this.cidades.length - 1]];
+        repetidos[this.cidades[this.cidades.length - 1]]++;
+        f += repetidos[this.cidades[this.cidades.length - 1]] * 100; //pensalização para cada repetição de cidades
+        return f;
     }
 
     public String toString(String nomes[]) {
@@ -98,5 +154,10 @@ class Gene {
             s += "->" + nomes[cidades[i]];
         }
         return s;
+    }
+
+    @Override
+    public int compareTo(Object o) {
+        return calcFitness() - ((Gene) o).calcFitness();
     }
 }
