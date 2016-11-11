@@ -8,7 +8,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class AG {
 
     private String[] nomes;
-    private int dist[][];
+    public double dist[][];
     private ArrayList<Gene> genes, elite;
     private int quantElite;
     private int quantCidades, quantGenes;
@@ -17,7 +17,7 @@ public class AG {
         this.quantElite = quantElite;
         this.quantCidades = quantCidades;
         this.quantGenes = quantGenes;
-        dist = new int[quantCidades][quantCidades];
+        dist = new double[quantCidades][quantCidades];
         nomes = new String[quantCidades];
         genes = new ArrayList<>();
         for (int i = 0; i < quantGenes; i++) {
@@ -36,12 +36,31 @@ public class AG {
         Scanner s = new Scanner(System.in);
         for (int i = 0; i < dist.length; i++) {
             for (int j = 0; j < dist.length; j++) {
-                dist[i][j] = s.nextInt();
+                dist[i][j] = s.nextDouble();
+            }
+        }
+    }
+    public void lerPontosCartesianos(){
+        Scanner s = new Scanner(System.in);
+        double[][] pontos = new double[quantCidades][2];
+        for(int i=0;i<quantCidades;i++){
+            pontos[i][0]=s.nextDouble();
+            pontos[i][1]=s.nextDouble();
+            System.out.println("x: "+ pontos[i][0]+"\ty: "+pontos[i][1]);
+        }
+        for(int i=0;i<quantCidades;i++){
+            for(int j=0;j<quantCidades;j++){
+                dist[i][j] = calcDistCartesiana(pontos[i][0], pontos[i][1], pontos[j][0], pontos[j][1]);
             }
         }
     }
 
+    private double calcDistCartesiana(double x1, double y1, double x2, double y2){
+        return Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+    }
+    
     public void printGenes() {
+        Collections.sort(genes);
         for (Gene g : genes) {
             System.out.println(g.toString(nomes) + "\tfitness:" + g.calcFitness());
         }
@@ -49,9 +68,12 @@ public class AG {
     }
 
     public void mutaGenes() {
-        for (Gene g : genes) {
-            g.mutacao();
+        for (int i=quantElite;i<genes.size();i++){
+            genes.get(i).mutacao();
         }
+//        for (Gene g : genes) {
+//            g.mutacao();
+//        }
     }
 
     public void cruzaGenes() {
@@ -86,20 +108,20 @@ public class AG {
         }
         genes = elite;
     }
-
+    
 }
 
 class Gene implements Comparable {
 
     public int cidades[];
-    public int[][] refDist;
+    public double[][] refDist;
 
-    public Gene(int v[], int tabela[][]) {
+    public Gene(int v[], double tabela[][]) {
         refDist = tabela;
         cidades = v;
     }
 
-    public Gene(int tam, int tabela[][]) {
+    public Gene(int tam, double tabela[][]) {
         refDist = tabela;
         Random rnd = ThreadLocalRandom.current();
         cidades = new int[tam];
@@ -130,7 +152,7 @@ class Gene implements Comparable {
         }
     }
 
-    public int calcFitness() {
+    public double calcFitness() {
         int f = 0;
         int repetidos[] = new int[this.cidades.length];
         for (int i = 0; i < this.cidades.length; i++) {
@@ -158,6 +180,11 @@ class Gene implements Comparable {
 
     @Override
     public int compareTo(Object o) {
-        return calcFitness() - ((Gene) o).calcFitness();
+        double result =  calcFitness() - ((Gene) o).calcFitness();
+        if(result >0)
+                return 1;
+        if(result < 0)
+            return -1;
+        return 0;
     }
 }
